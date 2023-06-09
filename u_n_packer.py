@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-Dateien in Archiv einfügen, evtl. mit Passwortschutz und auf jeden fall in 100mb-Teile zerteilt,
-die dann in b-Strings eingelagert werden um direkt auf die Festplatte geschrieben und wieder entpackt werden zu können.
+Python3-based application (un)packer.
 """
 
-debug = True
+verbose = True
 
 import gzip, os, sys, tempfile, traceback, shutil, l2db
 
@@ -22,7 +21,7 @@ def find_files(path:str, pathlist:list=[])->list:
             pathlist.append(os.path.join(path, dir, ''))
             find_files(os.path.join(path, dir), pathlist)
         except Exception as e:
-            print(f"Could not list directory '{dir}' because of {type(e).__name__}: {e}") #debug
+            print(f"Could not list directory '{dir}' because of {type(e).__name__}: {e}") #verbose
     for file in list_only_files_in(path):
         pathlist.append(os.path.join(path, file))
     return pathlist
@@ -31,9 +30,9 @@ def archive(from_dir:str)->bytes:
     """Puts all files from `from_dir` into a GZip-compressed L2DB and returns that."""
     errs = 0
     db = l2db.L2DB()
-    if debug: print(f'Reading directory structure in {from_dir}')
+    if verbose: print(f'Reading directory structure in {from_dir}')
     for path in find_files(from_dir):
-        if debug: print(f'Packing: {path}')
+        if verbose: print(f'Packing: {path}')
         if path[-1]==os.path.sep: # Is a directory
             db[path.removeprefix(from_dir if from_dir[-1]==os.path.sep else os.path.join(from_dir, ''))] = b''
         else: # Is a file
@@ -49,11 +48,11 @@ def archive(from_dir:str)->bytes:
 def extract(data:bytes, run:str='', keep:bool=False)->str:
     """Extracts all files from the GZip-compressed L2DB to `to_dir` and returns the `to_dir` path."""
     tmpdir, cwd = tempfile.mkdtemp(), os.getcwd()
-    if debug: print(f'Extracting to: {tmpdir}')
+    if verbose: print(f'Extracting to: {tmpdir}')
     errs = 0
     db = l2db.L2DB(source=gzip.decompress(data))
     for path in db:
-        if debug: print(f'Extracting {os.path.join(tmpdir, path)}')
+        if verbose: print(f'Extracting {os.path.join(tmpdir, path)}')
         try:
             if path[-1]==os.path.sep:
                 os.mkdir(path.join(tmpdir, path))
@@ -67,7 +66,7 @@ def extract(data:bytes, run:str='', keep:bool=False)->str:
 
     try:
         if run:
-            if debug: print(f'Executing in {tmpdir}: {run}')
+            if verbose: print(f'Executing in {tmpdir}: {run}')
             os.chdir(tmpdir)
             os.system(run)
         if not keep:

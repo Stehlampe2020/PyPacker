@@ -8,6 +8,14 @@ L2DB supports the following data types:
     * Values: integer (32-bit), long (64-bit), float (32-bit), double (64-bit), string (UTF-8-encoded text), raw (binary data)
 """
 
+l2db_license_md = """Note: this is NOT a full license, if anything isn't specifically and explicitly permitted here,
+ it's forbidden except with written permission by Lampe2020 <kontakt@lampe2020.de>.   
+   
+#### You are allowed to: 
+* run and use your copy of the program.   
+* modify your copy of the source code, as long as you don't distribute it
+ or use it for other projects you want to distribute.   """
+
 print('Warning! This version of L2DB is only a snapshot of L2DB v3 from 2023-06-08,\
  to get the latest version go to https://github.com/Stehlampe2020/L2DB!') # Print warning that this is just a snapshot.
 
@@ -365,7 +373,7 @@ expected one of {self.supported_index_types}!")
                                + helpers['bstr_from_str'] (str(key)) + b'\x00')
                     body_segment = to_bytes(self.__db[key])
             body += body_segment
-        #print(self.__db) #debug
+        #print(self.__db) #verbose
         self.__update_metadata('VALTABLE_LEN', len(valtable))
 
         # Metadata
