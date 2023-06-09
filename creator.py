@@ -27,7 +27,7 @@ def list_only_dirs_in(path:str)->list:
 def find_files(path:str, pathlist:list=[])->list:
     for dir in list_only_dirs_in(path):
         try:
-            pathlist.append(os.path.join(path, dir, '')
+            pathlist.append(os.path.join(path, dir, ''))
             find_files(os.path.join(path, dir), pathlist)
         except Exception as e:
             print(f"Could not list directory '{dir}' because of {type(e).__name__}: {e}") #debug
@@ -43,25 +43,34 @@ def archive(from_dir:str)->bytes:
     for path in find_files(from_dir):
         if debug: print(f'Packing: {path}')
         if path[-1]==os.path.sep: # Is a directory
-            ... #TODO: store value 'dir' in db[path]
+            db[path] = b'' # Raw, empty value
         else: # Is a file
             try:
                 with open(os.path.join(from_dir, path), 'rb') as file:
-                    ... #TODO: store file.read()'s result in db[path]
+                    db[path] = file.read()
             except Exception as e:
                 traceback.print_exception(e) # Notify the user of the error
                 errs+=1
     print(f'Files packed! ({errs} errors occurred)')
     return gzip.compress(db.syncout_db()) # Return GZip-compressed DB
 
-def unarchive(data:bytes)->str:
+def extract(data:bytes)->str:
     """Extracts all files from the GZip-compressed L2DB to `to_dir` and returns the `to_dir` path."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir: # Create a temporary directory
                                                                                         # and store its name in `tmpdir`
-        for path in l2db.L2DB(source=gzip.decompress(data)):
+        if debug: print(f'Extracting to: {tmpdir}')
+        db = l2db.L2DB(source=gzip.decompress(data))
+        for path in db:
+            if debug: print(f'Extracting {os.path.join(tmpdir, path)}')
             try:
                 if path[-1]==os.path.sep:
-                    ... #TODO: create the directory os.path.join(tmpdir, path)
+                    os.mkdir(path.join(tmpdir, path))
                 else:
                     with open(os.path.join(tmpdir, path), 'wb') as file:
-                        ... #TODO: write file contents to file
+                        file.write(db[path])
+            except Exception as e:
+                traceback.print_exception(e)
+
+            #TODO: run it all
+
+        return tmpdir
