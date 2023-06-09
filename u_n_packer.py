@@ -10,14 +10,6 @@ debug = True
 
 import gzip, os, sys, tempfile, traceback, shutil, l2db
 
-def compress(data:bytes) -> bytes:
-    """GZip-compresses `data`."""
-    return gzip.compress(data)
-
-def decompress(data:bytes) -> bytes:
-    """GZip-decompresses `data`."""
-    return gzip.decompress(data)
-
 def list_only_files_in(path:str)->list:
     return [file for file in os.listdir(path) if os.path.isfile(os.path.join(path, file))]
 
