@@ -8,7 +8,7 @@ die dann in b-Strings eingelagert werden um direkt auf die Festplatte geschriebe
 
 debug = True
 
-import gzip, os, tempfile, traceback, l2db
+import gzip, os, sys, tempfile, traceback, shutil, l2db
 
 def compress(data:bytes) -> bytes:
     """GZip-compresses `data`."""
@@ -43,7 +43,7 @@ def archive(from_dir:str)->bytes:
     for path in find_files(from_dir):
         if debug: print(f'Packing: {path}')
         if path[-1]==os.path.sep: # Is a directory
-            db[path] = b'' # Raw, empty value
+            db[path.removeprefix(from_dir if from_dir[-1]==os.path.sep else os.path.join(from_dir, ''))] = b''
         else: # Is a file
             try:
                 with open(os.path.join(from_dir, path), 'rb') as file:
@@ -54,23 +54,34 @@ def archive(from_dir:str)->bytes:
     print(f'Files packed! ({errs} errors occurred)')
     return gzip.compress(db.syncout_db()) # Return GZip-compressed DB
 
-def extract(data:bytes)->str:
+def extract(data:bytes, run:str='', keep:bool=False)->str:
     """Extracts all files from the GZip-compressed L2DB to `to_dir` and returns the `to_dir` path."""
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir: # Create a temporary directory
-                                                                                        # and store its name in `tmpdir`
-        if debug: print(f'Extracting to: {tmpdir}')
-        db = l2db.L2DB(source=gzip.decompress(data))
-        for path in db:
-            if debug: print(f'Extracting {os.path.join(tmpdir, path)}')
-            try:
-                if path[-1]==os.path.sep:
-                    os.mkdir(path.join(tmpdir, path))
-                else:
-                    with open(os.path.join(tmpdir, path), 'wb') as file:
-                        file.write(db[path])
-            except Exception as e:
-                traceback.print_exception(e)
+    tmpdir, cwd = tempfile.mkdtemp(), os.getcwd()
+    if debug: print(f'Extracting to: {tmpdir}')
+    errs = 0
+    db = l2db.L2DB(source=gzip.decompress(data))
+    for path in db:
+        if debug: print(f'Extracting {os.path.join(tmpdir, path)}')
+        try:
+            if path[-1]==os.path.sep:
+                os.mkdir(path.join(tmpdir, path))
+            else:
+                with open(os.path.join(tmpdir, path), 'wb') as file:
+                    file.write(db[path])
+        except Exception as e:
+            traceback.print_exception(e)
+            errs+=1
+    print(f'Files extracted! ({errs} errors occurred)')
 
-            #TODO: run it all
+    try:
+        if run:
+            if debug: print(f'Executing in {tmpdir}: {run}')
+            os.chdir(tmpdir)
+            os.system(run)
+        if not keep:
+            shutil.rmtree(tmpdir)
+        os.chdir(cwd)
+    except Exception as e:
+        traceback.print_exception(e)
 
-        return tmpdir
+    return tmpdir
