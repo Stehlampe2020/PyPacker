@@ -7,7 +7,10 @@ Python3-based application (un)packer.
 
 verbose = True
 
-import gzip, os, sys, tempfile, traceback, shutil, l2db
+import gzip, os, sys, tempfile, traceback, shutil, l2db, PyInstaller.__main__
+
+def compile(*args):
+    return multiprocessing.Process(target=PyInstaller.__main__.run, args=(args,)).start()
 
 def list_only_files_in(path:str)->list:
     return [file for file in os.listdir(path) if os.path.isfile(os.path.join(path, file))]

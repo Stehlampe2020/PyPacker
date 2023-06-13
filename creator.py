@@ -16,7 +16,7 @@ unpacker_gui = %{unpacker_gui}
 extr_path = extract(data=%{data}, run=%{cmd}, keep=do_repack)
 
 if do_repack:
-    # The strange 'replace __ for %' stuff below is there to prevent the packer from messing up the template.
+    # The strange 'replace __ for %' stuff below is there to prevent the packer from messing up this template.
     unpacker_skel = %{unpacker_skel}.replace('__{unpacker_skel}'.replace('__', '%'), unpacker_skel)
     unpacker_skel = unpacker_skel.replace('__{do_recompile}'.replace('__', '%'), orig_file['compiled'])
     unpacker_skel = unpacker_skel.replace('__{do_repack}-.replace('__', '%'), do_repack)
@@ -26,14 +26,15 @@ if do_repack:
     
     with open(orig_file['name'], 'w') as f:
         f.write(unpacker_skel.replace('__{unpacker_skel}'.replace('__', '%'), unpacker_skel))
-        del unpacker_skel # get rid of the large string, now that it's written to a file
+        del unpacker_skel # get rid of the potentially large string, now that it's written to a file
     
     if orig_file['compiled']:
         import PyInstaller.__main__
         PyInstaller.__main__.run([
             
         ])
-        shutil.move(f'dist/%{progname}'
+        shutil.move(f'dist/%{progname}', sys.executable) # sys.executable points to the packed EXE if packed,
+        # see https://pyinstaller.org/en/stable/runtime-information.html#using-sys-executable-and-sys-argv-0
 """
 
 class TerminalWindow(tkinter.Frame):
