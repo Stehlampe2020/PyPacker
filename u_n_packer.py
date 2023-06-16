@@ -7,7 +7,7 @@ Python3-based application (un)packer.
 
 verbose = True
 
-import gzip, os, sys, tempfile, traceback, shutil, l2db, PyInstaller.__main__
+import gzip, os, stat, sys, tempfile, traceback, shutil, json, l2db, PyInstaller.__main__
 
 def compile(*args):
     return multiprocessing.Process(target=PyInstaller.__main__.run, args=(args,)).start()
@@ -34,18 +34,27 @@ def archive(from_dir:str)->bytes:
     errs = 0
     db = l2db.L2DB()
     if verbose: print(f'Reading directory structure in {from_dir}')
+    db[os.path.sep] = json.dumps({fname:os.stat(os.path.join(from_dir, fname)).st_mode for fname in [
+        *list_only_dirs_in(from_dir),
+        *list_only_files_in(from_dir)
+    ]}).encode('utf-8')
     for path in find_files(from_dir):
+        fkey = path.removeprefix(from_dir if from_dir[-1]==os.path.sep else from_dir+os.path.sep)
         if verbose: print(f'Packing: {path}')
         if path[-1]==os.path.sep: # Is a directory
-            db[path.removeprefix(from_dir if from_dir[-1]==os.path.sep else os.path.join(from_dir, ''))] = b''
+            db[fkey] = json.dumps({fname:os.stat(os.path.join(os.path.dirname(fkey), fname)).st_mode for fname in [
+                *list_only_dirs_in(os.path.dirname(fkey)),
+                *list_only_files_in(os.path.dirname(fkey))
+            ]}).encode('utf-8')
         else: # Is a file
             try:
                 with open(os.path.join(from_dir, path), 'rb') as file:
-                    db[path] = file.read()
+                    db[fkey] = file.read()
             except Exception as e:
                 traceback.print_exception(e) # Notify the user of the error
                 errs+=1
     print(f'Files packed! ({errs} errors occurred)')
+    if verbose: print('Compressing...')
     return gzip.compress(db.syncout_db()) # Return GZip-compressed DB
 
 def extract(data:bytes, run:str='', keep:bool=False)->str:
@@ -55,13 +64,17 @@ def extract(data:bytes, run:str='', keep:bool=False)->str:
     errs = 0
     db = l2db.L2DB(source=gzip.decompress(data))
     for path in db:
+        if path==os.path.sep: continue
         if verbose: print(f'Extracting {os.path.join(tmpdir, path)}')
         try:
             if path[-1]==os.path.sep:
-                os.mkdir(path.join(tmpdir, path))
+                os.mkdir(os.path.join(tmpdir, path))
             else:
                 with open(os.path.join(tmpdir, path), 'wb') as file:
                     file.write(db[path])
+                    os.chmod(file.name, json.loads(db[ # copy over the file permissions
+                        os.path.dirname(path).removeprefix(f'.{os.path.sep}')+os.path.sep
+                    ])[path.removeprefix(os.path.dirname(path)+os.path.sep)])
         except Exception as e:
             traceback.print_exception(e)
             errs+=1
